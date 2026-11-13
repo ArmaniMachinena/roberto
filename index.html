@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Роберто</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1b2119">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+/* Password gate: one centred card on the app's own dark olive ground */
+:root{--bg:#1b2119;--card:#262e22;--line:#3a4533;--fg:#eef0e6;--muted:#a9b09c;--accent:#f17835;--bad:#ff8a80;--f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 var(--f);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.gate{width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;text-align:center}
+.gate img{width:76px;height:76px;border-radius:18px;margin:0 auto;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+h1{margin:4px 0 0;font-size:26px;letter-spacing:.01em}
+p{margin:0;color:var(--muted)}
+form{display:flex;flex-direction:column;gap:10px;margin-top:8px;text-align:left}
+label{font-size:14px;color:var(--muted)}
+input[type=password],input[type=text]{width:100%;padding:13px 14px;font:18px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;color:var(--fg);background:var(--card);border:1.5px solid var(--line);border-radius:12px}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.chk{display:flex;align-items:center;gap:8px;color:var(--fg)}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+.show{background:none;border:0;color:var(--muted);font:14px var(--f);padding:6px;cursor:pointer}
+button.go{padding:14px;border:0;border-radius:12px;background:var(--accent);color:#1b1208;font:700 17px var(--f);cursor:pointer}
+button.go:disabled{opacity:.6}
+#msg{min-height:1.4em;font-size:14px;text-align:center}
+#msg.bad{color:var(--bad)}
+.bar{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<main class="gate">
+  <img src="icon.png" alt="">
+  <h1>Роберто</h1>
+  <p>Карта охотхозяйств Ишимское и Богутбай. Введите пароль, который вам прислали.</p>
+  <form id="f" autocomplete="on">
+    <div class="row"><label for="pw">Пароль</label><button class="show" type="button" id="show">Показать</button></div>
+    <input id="pw" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label class="chk"><input id="rem" type="checkbox" checked> Запомнить на этом телефоне</label>
+    <button class="go" id="go" type="submit">Открыть карту</button>
+    <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+    <p id="msg" role="status" aria-live="polite"></p>
+  </form>
+</main>
+<script>
+(() => { // own scope: the app written into this page later declares its own globals
+'use strict';
+const CFG = {"salt": "oSvBlVOe0fbxZCBqo4XCbw==", "iv": "FDkeBdlVvnNeh6dg", "iter": 600000, "size": 8852975}, KEY = 'roberto-pw';
+const $ = s => document.querySelector(s), b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const msg = (t, bad) => { $('#msg').textContent = t; $('#msg').className = bad ? 'bad' : ''; };
+// start downloading the encrypted app right away, while the password is typed
+let got = 0;
+const data = (async () => {
+  const r = await fetch('app.bin', {cache: 'no-cache'}); if (!r.ok) throw new Error('net');
+  if (!r.body || !r.body.getReader) return new Uint8Array(await r.arrayBuffer());
+  const rd = r.body.getReader(), parts = [];
+  for (;;) { const {done, value} = await rd.read(); if (done) break; parts.push(value); got += value.length; $('#bar').style.width = Math.min(100, got / CFG.size * 100) + '%'; }
+  const out = new Uint8Array(got); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out;
+})();
+data.catch(() => {});
+async function unlock(pw, remember) {
+  if (!('DecompressionStream' in window) || !crypto.subtle) { msg('Браузер устарел: обновите Chrome и откройте ссылку снова', true); return false; }
+  $('#go').disabled = true; msg('Проверяю пароль…');
+  try {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b64(CFG.salt), iterations: CFG.iter, hash: 'SHA-256'}, base, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+    msg(got < CFG.size ? 'Загружаю карты…' : 'Открываю…');
+    let bytes; try { bytes = await data; } catch (e) { msg('Нет интернета или сайт не отвечает. Проверьте связь и обновите страницу', true); $('#go').disabled = false; return false; }
+    let plain;
+    try { plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b64(CFG.iv), additionalData: new TextEncoder().encode('roberto-v1')}, key, bytes); }
+    catch (e) { try { localStorage.removeItem(KEY); } catch (x) {} msg('Неверный пароль', true); $('#go').disabled = false; $('#pw').select(); return false; }
+    try { if (remember) localStorage.setItem(KEY, pw); else localStorage.removeItem(KEY); } catch (x) {}
+    const html = await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    document.open(); document.write(html); document.close();
+    return true;
+  } catch (e) { msg('Не получилось открыть: ' + (e && e.message || e), true); $('#go').disabled = false; return false; }
+}
+$('#f').addEventListener('submit', e => { e.preventDefault(); const pw = $('#pw').value.trim(); if (pw) unlock(pw, $('#rem').checked); });
+$('#show').onclick = () => { const i = $('#pw'), t = i.type === 'password'; i.type = t ? 'text' : 'password'; $('#show').textContent = t ? 'Скрыть' : 'Показать'; };
+let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}
+if (saved) { $('#pw').value = saved; unlock(saved, true); } else $('#pw').focus();
+})();
+</script>
+</body>
+</html>
