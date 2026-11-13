@@ -38,22 +38,29 @@ button.go:disabled{opacity:.6}
 <body>
 <main class="gate">
   <img src="icon.png" alt="">
-  <h1>Роберто</h1>
-  <p>Карта охотхозяйств Ишимское и Богутбай. Введите пароль, который вам прислали.</p>
+  <h1 id="t-name">Роберто</h1>
+  <p id="t-lead">Карта охотхозяйств Ишимское и Богутбай. Введите пароль, который вам прислали.</p>
   <form id="f" autocomplete="on">
-    <div class="row"><label for="pw">Пароль</label><button class="show" type="button" id="show">Показать</button></div>
+    <div class="row"><label for="pw" id="t-pw">Пароль</label><button class="show" type="button" id="show">Показать</button></div>
     <input id="pw" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
-    <label class="chk"><input id="rem" type="checkbox" checked> Запомнить на этом телефоне</label>
+    <label class="chk"><input id="rem" type="checkbox" checked> <span id="t-rem">Запомнить на этом телефоне</span></label>
     <button class="go" id="go" type="submit">Открыть карту</button>
     <div class="bar" aria-hidden="true"><i id="bar"></i></div>
     <p id="msg" role="status" aria-live="polite"></p>
   </form>
+  <p style="margin-top:6px"><button type="button" id="lang" class="show" style="font-size:14px"></button></p>
 </main>
 <script>
 (() => { // own scope: the app written into this page later declares its own globals
 'use strict';
-const CFG = {"salt": "lXGFC2Z6tamFHam03elmeQ==", "iv": "I3orPzGmDNMM1E2N", "iter": 600000, "size": 8852885}, KEY = 'roberto-pw';
+const CFG = {"salt": "FSs79bEuH0opaWZr6T2c2A==", "iv": "S9lraIrYMfpwxONz", "iter": 600000, "size": 2584031}, KEY = 'roberto-pw';
 const $ = s => document.querySelector(s), b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const TXT={ru:{name:'Роберто',lead:'Карта охотхозяйств Ишимское и Богутбай. Введите пароль, который вам прислали.',pw:'Пароль',show:'Показать',hide:'Скрыть',rem:'Запомнить на этом телефоне',go:'Открыть карту',old:'Браузер устарел: обновите Chrome и откройте ссылку снова',chk:'Проверяю пароль…',load:'Загружаю карты…',open:'Открываю…',net:'Нет интернета или сайт не отвечает. Проверьте связь и обновите страницу',bad:'Неверный пароль',fail:'Не получилось открыть: ',other:'English'},
+en:{name:'Roberto',lead:'Map of the Ishimskoye and Bogutbay hunting estates. Enter the password you were sent.',pw:'Password',show:'Show',hide:'Hide',rem:'Remember on this phone',go:'Open the map',old:'This browser is too old: update Chrome and open the link again',chk:'Checking the password…',load:'Loading maps…',open:'Opening…',net:'No internet or the site is not responding. Check the connection and reload the page',bad:'Wrong password',fail:'Could not open: ',other:'Русский'}};
+let LG=''; try { LG = localStorage.getItem('roberto-lang') || ''; } catch (e) {}
+if (LG !== 'ru' && LG !== 'en') LG = /^(ru|kk|uk|be)\b/i.test(navigator.language || 'ru') ? 'ru' : 'en';
+const T = k => TXT[LG][k];
+const paintLang = () => { document.documentElement.lang = LG; document.title = T('name'); [['t-name','name'],['t-lead','lead'],['t-pw','pw'],['t-rem','rem'],['go','go'],['lang','other']].forEach(([id,k]) => { document.getElementById(id).textContent = T(k); }); document.getElementById('show').textContent = document.getElementById('pw').type === 'password' ? T('show') : T('hide'); };
 const msg = (t, bad) => { $('#msg').textContent = t; $('#msg').className = bad ? 'bad' : ''; };
 // start downloading the encrypted app right away, while the password is typed
 let got = 0;
@@ -66,24 +73,26 @@ const data = (async () => {
 })();
 data.catch(() => {});
 async function unlock(pw, remember) {
-  if (!('DecompressionStream' in window) || !crypto.subtle) { msg('Браузер устарел: обновите Chrome и откройте ссылку снова', true); return false; }
-  $('#go').disabled = true; msg('Проверяю пароль…');
+  if (!('DecompressionStream' in window) || !crypto.subtle) { msg(T('old'), true); return false; }
+  $('#go').disabled = true; msg(T('chk'));
   try {
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
     const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b64(CFG.salt), iterations: CFG.iter, hash: 'SHA-256'}, base, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
-    msg(got < CFG.size ? 'Загружаю карты…' : 'Открываю…');
-    let bytes; try { bytes = await data; } catch (e) { msg('Нет интернета или сайт не отвечает. Проверьте связь и обновите страницу', true); $('#go').disabled = false; return false; }
+    msg(got < CFG.size ? T('load') : T('open'));
+    let bytes; try { bytes = await data; } catch (e) { msg(T('net'), true); $('#go').disabled = false; return false; }
     let plain;
     try { plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b64(CFG.iv), additionalData: new TextEncoder().encode('roberto-v1')}, key, bytes); }
-    catch (e) { try { localStorage.removeItem(KEY); } catch (x) {} msg('Неверный пароль', true); $('#go').disabled = false; $('#pw').select(); return false; }
+    catch (e) { try { localStorage.removeItem(KEY); } catch (x) {} msg(T('bad'), true); $('#go').disabled = false; $('#pw').select(); return false; }
     try { if (remember) localStorage.setItem(KEY, pw); else localStorage.removeItem(KEY); } catch (x) {}
     const html = await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
     document.open(); document.write(html); document.close();
     return true;
-  } catch (e) { msg('Не получилось открыть: ' + (e && e.message || e), true); $('#go').disabled = false; return false; }
+  } catch (e) { msg(T('fail') + (e && e.message || e), true); $('#go').disabled = false; return false; }
 }
 $('#f').addEventListener('submit', e => { e.preventDefault(); const pw = $('#pw').value.trim(); if (pw) unlock(pw, $('#rem').checked); });
-$('#show').onclick = () => { const i = $('#pw'), t = i.type === 'password'; i.type = t ? 'text' : 'password'; $('#show').textContent = t ? 'Скрыть' : 'Показать'; };
+$('#show').onclick = () => { const i = $('#pw'), t = i.type === 'password'; i.type = t ? 'text' : 'password'; $('#show').textContent = t ? T('hide') : T('show'); };
+$('#lang').onclick = () => { LG = LG === 'ru' ? 'en' : 'ru'; try { localStorage.setItem('roberto-lang', LG); } catch (e) {} paintLang(); msg(''); };
+paintLang();
 let saved = null; try { saved = localStorage.getItem(KEY); } catch (e) {}
 if (saved) { $('#pw').value = saved; unlock(saved, true); } else $('#pw').focus();
 })();
