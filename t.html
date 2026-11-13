@@ -705,11 +705,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
 (() => {
 'use strict';
 const q = new URLSearchParams(location.hash.slice(1)), $ = id => document.getElementById(id);
-let lang = q.get('l'); if (lang !== 'ru' && lang !== 'en') lang = /^(ru|kk|uk|be)\b/i.test(navigator.language || 'ru') ? 'ru' : 'en';
+let lang = q.get('l'); if (!['ru', 'en', 'it'].includes(lang)) { const nl = navigator.language || 'ru'; lang = /^(ru|kk|uk|be)\b/i.test(nl) ? 'ru' : /^it\b/i.test(nl) ? 'it' : 'en'; }
 const T = {ru: {track: 'Трек', gm: 'Проложить маршрут до конца трека в Google Maps', loc: 'Где я', fit: 'Весь трек', gpx: 'Скачать GPX', kml: 'Скачать KML', start: 'Старт', finish: 'Финиш', km: 'км', m: 'м',
     hint: 'GPX открывается в Guru Maps, OsmAnd, Organic Maps, Maps.me, Garmin. KML — в Google Earth.', noloc: 'Нет доступа к геопозиции: разрешите его в настройках браузера', away: 'до трека', empty: 'В ссылке нет трека. Попросите прислать её ещё раз.'},
   en: {track: 'Track', gm: 'Get directions to the end of the track in Google Maps', loc: 'Where am I', fit: 'Whole track', gpx: 'Download GPX', kml: 'Download KML', start: 'Start', finish: 'Finish', km: 'km', m: 'm',
-    hint: 'GPX opens in Guru Maps, OsmAnd, Organic Maps, Maps.me, Garmin. KML opens in Google Earth.', noloc: 'No access to location: allow it in the browser settings', away: 'to the track', empty: 'This link has no track in it. Ask for it to be sent again.'}}[lang];
+    hint: 'GPX opens in Guru Maps, OsmAnd, Organic Maps, Maps.me, Garmin. KML opens in Google Earth.', noloc: 'No access to location: allow it in the browser settings', away: 'to the track', empty: 'This link has no track in it. Ask for it to be sent again.'},
+  it: {track: 'Traccia', gm: 'Indicazioni fino alla fine della traccia in Google Maps', loc: 'Dove sono', fit: 'Tutta la traccia', gpx: 'Scarica GPX', kml: 'Scarica KML', start: 'Partenza', finish: 'Arrivo', km: 'km', m: 'm',
+    hint: 'Il GPX si apre in Guru Maps, OsmAnd, Organic Maps, Maps.me, Garmin. Il KML in Google Earth.', noloc: 'Nessun accesso alla posizione: consentitelo nelle impostazioni del browser', away: 'dalla traccia', empty: 'In questo link non c\'è una traccia. Chiedete di inviarlo di nuovo.'}}[lang];
 document.documentElement.lang = lang;
 const unpack = s => { const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/')), out = []; let i = 0, a = 0, b = 0; const get = () => { let v = 0, sh = 0, c; do { c = bin.charCodeAt(i++); v |= (c & 0x7f) << sh; sh += 7; } while (c & 0x80 && i < bin.length); return v & 1 ? ~(v >>> 1) : v >>> 1; };
   while (i < bin.length) { a += get(); b += get(); out.push([a / 1e5, b / 1e5]); } return out; };
@@ -718,7 +720,7 @@ if (!lines.length) { $('empty').style.display = 'grid'; $('empty-t').textContent
 const title = q.get('t') || T.track, color = /^[0-9a-f]{6}$/i.test(q.get('c') || '') ? '#' + q.get('c') : '#ff6d00';
 const hav = (a, b) => { const R = 6371008.8, r = Math.PI / 180, p1 = a[0] * r, p2 = b[0] * r, dl = (b[1] - a[1]) * r, h = Math.sin((p2 - p1) / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
 const dist = +q.get('d') || lines.reduce((n, l) => n + l.slice(1).reduce((s, p, i) => s + hav(l[i], p), 0), 0);
-const fmt = m => m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 1 : 2).replace('.', lang === 'ru' ? ',' : '.') + ' ' + T.km : Math.round(m) + ' ' + T.m;
+const fmt = m => m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 1 : 2).replace('.', lang === 'en' ? '.' : ',') + ' ' + T.km : Math.round(m) + ' ' + T.m;
 const first = lines[0][0], lastL = lines[lines.length - 1], last = lastL[lastL.length - 1];
 document.title = 'Roberto — ' + title; $('title').textContent = title; $('sub').textContent = fmt(dist);
 $('gm').textContent = T.gm; $('gm').href = `https://www.google.com/maps/dir/?api=1&destination=${last[0].toFixed(6)},${last[1].toFixed(6)}`;
