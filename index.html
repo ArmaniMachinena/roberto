@@ -53,7 +53,7 @@ button.go:disabled{opacity:.6}
 <script>
 (() => { // own scope: the app written into this page later declares its own globals
 'use strict';
-const CFG = {"salt": "S3gDSypZrDkXdmQgUnkKRw==", "iv": "OyKoOjIgq8fJCkyK", "iter": 600000, "size": 2613885}, KEY = 'roberto-pw';
+const CFG = {"salt": "2BBgPJ3T3aMpcP97ZPTdpw==", "iv": "EkBSlp2ZNHfRAsci", "iter": 600000, "size": 2613758}, KEY = 'roberto-pw';
 const $ = s => document.querySelector(s), b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const TXT={ru:{name:'Роберто',lead:'Карта охотхозяйств Ишимское и Богутбай. Введите пароль, который вам прислали.',pw:'Пароль',show:'Показать',hide:'Скрыть',rem:'Запомнить на этом телефоне',go:'Открыть карту',old:'Браузер устарел: обновите Chrome и откройте ссылку снова',chk:'Проверяю пароль…',load:'Загружаю карты…',open:'Открываю…',net:'Нет интернета или сайт не отвечает. Проверьте связь и обновите страницу',bad:'Неверный пароль',fail:'Не получилось открыть: ',other:'English'},
 en:{name:'Roberto',lead:'Map of the Ishimskoye and Bogutbay hunting estates. Enter the password you were sent.',pw:'Password',show:'Show',hide:'Hide',rem:'Remember on this phone',go:'Open the map',old:'This browser is too old: update Chrome and open the link again',chk:'Checking the password…',load:'Loading maps…',open:'Opening…',net:'No internet or the site is not responding. Check the connection and reload the page',bad:'Wrong password',fail:'Could not open: ',other:'Русский'}};
